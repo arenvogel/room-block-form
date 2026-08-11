@@ -35,8 +35,13 @@
     if (CONFIG.STAY_MIN_DATE) input.min = CONFIG.STAY_MIN_DATE;
     if (CONFIG.STAY_MAX_DATE) input.max = CONFIG.STAY_MAX_DATE;
   }
+  function applyDefaultDates(checkIn, checkOut) {
+    if (CONFIG.DEFAULT_CHECK_IN) checkIn.value = CONFIG.DEFAULT_CHECK_IN;
+    if (CONFIG.DEFAULT_CHECK_OUT) checkOut.value = CONFIG.DEFAULT_CHECK_OUT;
+  }
   applyDateBounds(sharedCheckIn);
   applyDateBounds(sharedCheckOut);
+  applyDefaultDates(sharedCheckIn, sharedCheckOut);
 
   // ---- Room cards ----
   const roomCards = [];
@@ -117,6 +122,7 @@
     const checkOut = card.querySelector(".check-out");
     applyDateBounds(checkIn);
     applyDateBounds(checkOut);
+    applyDefaultDates(checkIn, checkOut);
     [checkIn, checkOut].forEach((el) => el.addEventListener("change", updatePricing));
 
     buildGuestNameInputs(card);

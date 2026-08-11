@@ -18,6 +18,10 @@ const CONFIG = {
   STAY_MIN_DATE: "",
   STAY_MAX_DATE: "",
 
+  // Dates prefilled in every date field (guests can change them). "" disables.
+  DEFAULT_CHECK_IN: "2027-02-04",
+  DEFAULT_CHECK_OUT: "2027-02-07",
+
   // Maximum rooms one person can request.
   MAX_ROOMS: 5,
 };
