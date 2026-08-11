@@ -1,0 +1,182 @@
+/**
+ * Room Block Reservation — Google Apps Script backend.
+ *
+ * Setup (once):
+ * 1. Create a Google Sheet (this is where reservations land).
+ * 2. Extensions → Apps Script, paste this file, set NOTIFY_EMAILS below.
+ * 3. Deploy → New deployment → Web app:
+ *      Execute as: Me
+ *      Who has access: Anyone
+ * 4. Copy the /exec URL into ENDPOINT_URL in the site's config.js.
+ *
+ * Each submitted room becomes one row, grouped by a shared Reservation ID.
+ * Rates are recalculated server-side; the client's math is never trusted.
+ */
+
+// Email address(es) to notify on each submission. Comma-separated. "" disables.
+const NOTIFY_EMAILS = "";
+
+const SHEET_NAME = "Reservations";
+
+// Must match calc.js on the site.
+const RATES_BY_ADULTS = { 1: 279, 2: 379, 3: 499, 4: 625 };
+const CHILD_RATE_PER_NIGHT = 88.5;
+const MAX_OCCUPANCY = 4;
+
+const HEADERS = [
+  "Reservation ID", "Submitted At", "First Name", "Last Name", "Email", "Phone",
+  "Room #", "Room Type", "Adults", "Children", "Guest Names",
+  "Check-in", "Check-out", "Nights", "Nightly Rate", "Room Total",
+  "Reservation Total",
+];
+
+function nightlyRate(adults, children) {
+  if (!Number.isInteger(adults) || !Number.isInteger(children)) return null;
+  if (adults < 1 || children < 0) return null;
+  if (adults + children > MAX_OCCUPANCY) return null;
+  return RATES_BY_ADULTS[adults] + CHILD_RATE_PER_NIGHT * children;
+}
+
+function nightsBetween(checkIn, checkOut) {
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  if (!re.test(checkIn || "") || !re.test(checkOut || "")) return null;
+  const nights = Math.round(
+    (Date.parse(checkOut + "T00:00:00Z") - Date.parse(checkIn + "T00:00:00Z")) / 86400000
+  );
+  return nights > 0 ? nights : null;
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const guest = data.primaryGuest || {};
+    const rooms = data.rooms || [];
+
+    if (!guest.firstName || !guest.lastName || !guest.email || !guest.phone) {
+      return jsonResponse({ ok: false, error: "Missing contact information." });
+    }
+    if (!Array.isArray(rooms) || rooms.length < 1 || rooms.length > 10) {
+      return jsonResponse({ ok: false, error: "Invalid number of rooms." });
+    }
+
+    // Recalculate every room server-side.
+    const computed = [];
+    for (let i = 0; i < rooms.length; i++) {
+      const room = rooms[i];
+      const adults = Number(room.adults);
+      const children = Number(room.children);
+      const rate = nightlyRate(adults, children);
+      const nights = nightsBetween(room.checkIn, room.checkOut);
+      const names = Array.isArray(room.guestNames)
+        ? room.guestNames.map(String).map((s) => s.trim()).filter(Boolean)
+        : [];
+      if (rate === null) return jsonResponse({ ok: false, error: "Room " + (i + 1) + ": invalid occupancy." });
+      if (nights === null) return jsonResponse({ ok: false, error: "Room " + (i + 1) + ": invalid dates." });
+      if (names.length !== adults + children) {
+        return jsonResponse({ ok: false, error: "Room " + (i + 1) + ": a name is required for every guest." });
+      }
+      computed.push({
+        roomNumber: i + 1,
+        roomType: String(room.roomType || ""),
+        adults: adults,
+        children: children,
+        guestNames: names,
+        checkIn: room.checkIn,
+        checkOut: room.checkOut,
+        nights: nights,
+        rate: rate,
+        total: rate * nights,
+      });
+    }
+    const totalDue = computed.reduce(function (sum, r) { return sum + r.total; }, 0);
+
+    // Append rows (one per room). Lock so concurrent submissions can't
+    // compute the same start row and overwrite each other.
+    const reservationId = "RB-" + Utilities.formatDate(new Date(), "America/New_York", "yyyyMMdd-HHmmss") +
+      "-" + Math.floor(Math.random() * 900 + 100);
+    const submittedAt = Utilities.formatDate(new Date(), "America/New_York", "yyyy-MM-dd HH:mm");
+    const rows = computed.map(function (r) {
+      return [
+        reservationId, submittedAt,
+        guest.firstName, guest.lastName, guest.email, guest.phone,
+        r.roomNumber, r.roomType, r.adults, r.children, r.guestNames.join(", "),
+        r.checkIn, r.checkOut, r.nights, r.rate, r.total,
+        totalDue,
+      ];
+    });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = getSheet_();
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length).setValues(rows);
+    } finally {
+      lock.releaseLock();
+    }
+
+    // The reservation is persisted; a notification failure must not fail the
+    // request (a retry would append duplicate rows).
+    if (NOTIFY_EMAILS) {
+      try {
+        sendNotification_(reservationId, guest, computed, totalDue);
+      } catch (mailErr) {
+        console.error("Notification email failed: " + mailErr.message);
+      }
+    }
+
+    return jsonResponse({ ok: true, reservationId: reservationId, totalDue: totalDue });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: "Server error: " + err.message });
+  }
+}
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function money_(amount) {
+  const decimals = Number.isInteger(amount) ? 0 : 2;
+  return "$" + amount.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: 2,
+  });
+}
+
+function sendNotification_(reservationId, guest, rooms, totalDue) {
+  const lines = [
+    "New room block reservation: " + reservationId,
+    "",
+    "Guest: " + guest.firstName + " " + guest.lastName,
+    "Email: " + guest.email,
+    "Phone: " + guest.phone,
+    "",
+  ];
+  rooms.forEach(function (r) {
+    lines.push(
+      "Room " + r.roomNumber + ": " + r.roomType + " | " +
+      r.adults + " adult(s), " + r.children + " child(ren) | " +
+      r.checkIn + " to " + r.checkOut + " (" + r.nights + " nights) | " +
+      money_(r.rate) + "/night = " + money_(r.total)
+    );
+    lines.push("  Guests: " + r.guestNames.join(", "));
+  });
+  lines.push("");
+  lines.push("TOTAL DUE: " + money_(totalDue));
+  MailApp.sendEmail({
+    to: NOTIFY_EMAILS,
+    subject: "Room Block Reservation " + reservationId + " - " + guest.firstName + " " + guest.lastName + " (" + money_(totalDue) + ")",
+    body: lines.join("\n"),
+  });
+}

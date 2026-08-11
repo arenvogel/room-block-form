@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f2">
+  <title>Room Block Reservation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <p class="eyebrow" id="hotel-name" hidden></p>
+      <h1 id="event-name">Room Block Reservation</h1>
+      <p class="intro">Book your rooms below. You'll see your total before you submit.</p>
+    </header>
+
+    <form id="reservation-form" novalidate>
+      <!-- 1. Primary guest -->
+      <section class="card" aria-labelledby="contact-heading">
+        <h2 id="contact-heading"><span class="step">1</span>Your information</h2>
+        <div class="field-grid two-col">
+          <label class="field">
+            <span class="field-label">First name</span>
+            <input type="text" name="firstName" autocomplete="given-name" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Last name</span>
+            <input type="text" name="lastName" autocomplete="family-name" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Email</span>
+            <input type="email" name="email" autocomplete="email" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Phone</span>
+            <input type="tel" name="phone" autocomplete="tel" required>
+          </label>
+        </div>
+      </section>
+
+      <!-- 2. Rooms & dates -->
+      <section class="card" aria-labelledby="rooms-heading">
+        <h2 id="rooms-heading"><span class="step">2</span>Rooms &amp; dates</h2>
+        <div class="field-grid two-col">
+          <label class="field">
+            <span class="field-label">How many rooms would you like to book?</span>
+            <select id="room-count" name="roomCount"></select>
+          </label>
+        </div>
+
+        <fieldset class="field same-dates" id="same-dates-fieldset" hidden>
+          <legend class="field-label">Will all rooms have the same check-in and check-out dates?</legend>
+          <div class="radio-row">
+            <label class="radio-pill"><input type="radio" name="sameDates" value="yes" checked><span>Yes</span></label>
+            <label class="radio-pill"><input type="radio" name="sameDates" value="no"><span>No, set dates per room</span></label>
+          </div>
+        </fieldset>
+
+        <div class="field-grid two-col" id="shared-dates">
+          <label class="field">
+            <span class="field-label">Check-in</span>
+            <input type="date" id="shared-check-in" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Check-out</span>
+            <input type="date" id="shared-check-out" required>
+          </label>
+        </div>
+      </section>
+
+      <!-- 3. Per-room sections (generated) -->
+      <div id="room-cards"></div>
+
+      <!-- Summary -->
+      <section class="card summary-card" aria-labelledby="summary-heading">
+        <h2 id="summary-heading"><span class="step">3</span>Reservation summary</h2>
+        <div id="summary-rooms"></div>
+        <div class="grand-total" aria-live="polite">
+          <span>Total Amount Due</span>
+          <strong id="grand-total">—</strong>
+        </div>
+        <p class="fine-print">Rates: $279/night (1 adult) · $379 (2 adults) · $499 (3 adults) · $625 (4 adults). Children ages 2–12 add $88.50 per child, per night. Maximum 4 guests per room.</p>
+        <div class="error-box" id="form-errors" role="alert" hidden></div>
+        <button type="submit" class="submit-btn" id="submit-btn">Submit reservation request</button>
+      </section>
+    </form>
+
+    <!-- Confirmation (shown after successful submit) -->
+    <section class="card confirmation" id="confirmation" hidden>
+      <div class="confirm-icon" aria-hidden="true">✓</div>
+      <h2>Reservation request received</h2>
+      <p id="confirm-text"></p>
+      <div class="grand-total confirm-total">
+        <span>Total Amount Due</span>
+        <strong id="confirm-total">—</strong>
+      </div>
+      <a id="payment-link" class="submit-btn pay-btn" href="#" target="_blank" rel="noopener" hidden>Pay now</a>
+      <p class="fine-print" id="confirm-footnote"></p>
+    </section>
+  </main>
+
+  <template id="room-card-template">
+    <section class="card room-card">
+      <h2 class="room-title"></h2>
+      <fieldset class="field">
+        <legend class="field-label">Room type preference</legend>
+        <div class="radio-row">
+          <label class="radio-pill"><input type="radio" value="1 King Bed"><span>1 King Bed</span></label>
+          <label class="radio-pill"><input type="radio" value="2 Queen Beds"><span>2 Queen Beds</span></label>
+        </div>
+      </fieldset>
+      <div class="field-grid two-col">
+        <label class="field">
+          <span class="field-label">Adults</span>
+          <select class="adults-select"></select>
+        </label>
+        <label class="field">
+          <span class="field-label">Children (ages 2–12)</span>
+          <select class="children-select"></select>
+        </label>
+      </div>
+      <p class="occupancy-note" role="status" hidden></p>
+      <div class="field guest-names">
+        <span class="field-label">Guest names <span class="hint">(everyone staying in this room)</span></span>
+        <div class="guest-name-inputs"></div>
+      </div>
+      <div class="field-grid two-col room-dates">
+        <label class="field">
+          <span class="field-label">Check-in</span>
+          <input type="date" class="check-in" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Check-out</span>
+          <input type="date" class="check-out" required>
+        </label>
+      </div>
+      <div class="room-pricing" aria-live="polite"></div>
+    </section>
+  </template>
+
+  <script src="config.js"></script>
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
