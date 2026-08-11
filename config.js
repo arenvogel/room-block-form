@@ -7,7 +7,7 @@ const CONFIG = {
   HOTEL_NAME: "", // e.g. "The Grand Hotel" (optional, shown under the title)
 
   // Google Apps Script web app URL (ends in /exec). REQUIRED before go-live.
-  ENDPOINT_URL: "",
+  ENDPOINT_URL: "https://script.google.com/macros/s/AKfycbzjYSbGjnLg90xIKZzwGQpGKWxIcGO3KWVIOYIxrdHkgi3PsM59ZCzzHy15em4koNtk/exec",
 
   // Payment link (Option A). If set, it is shown on the confirmation screen
   // with the calculated total. If empty, guests see the Option B message
