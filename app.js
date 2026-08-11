@@ -39,6 +39,13 @@
     if (CONFIG.DEFAULT_CHECK_IN) checkIn.value = CONFIG.DEFAULT_CHECK_IN;
     if (CONFIG.DEFAULT_CHECK_OUT) checkOut.value = CONFIG.DEFAULT_CHECK_OUT;
   }
+
+  // Copy a date across a mode switch unless the destination was deliberately
+  // edited (an untouched field is empty or still holds the prefilled default).
+  function carryDate(srcEl, destEl, defaultValue) {
+    if (!srcEl.value) return;
+    if (!destEl.value || destEl.value === defaultValue) destEl.value = srcEl.value;
+  }
   applyDateBounds(sharedCheckIn);
   applyDateBounds(sharedCheckOut);
   applyDefaultDates(sharedCheckIn, sharedCheckOut);
@@ -144,18 +151,14 @@
     // Going from 1 room to several defaults to shared dates: carry the dates
     // already typed on room 1 into the shared fields so nothing is retyped.
     if (wasSingle && count > 1 && form.elements.sameDates.value === "yes") {
-      const ci = roomCards[0].querySelector(".check-in");
-      const co = roomCards[0].querySelector(".check-out");
-      if (!sharedCheckIn.value && ci.value) sharedCheckIn.value = ci.value;
-      if (!sharedCheckOut.value && co.value) sharedCheckOut.value = co.value;
+      carryDate(roomCards[0].querySelector(".check-in"), sharedCheckIn, CONFIG.DEFAULT_CHECK_IN);
+      carryDate(roomCards[0].querySelector(".check-out"), sharedCheckOut, CONFIG.DEFAULT_CHECK_OUT);
     }
     // And the reverse: dropping back to 1 room leaves per-room dates in
-    // charge, so carry the shared dates into room 1 if it has none.
+    // charge, so carry the shared dates into room 1.
     if (wasShared && count === 1) {
-      const ci = roomCards[0].querySelector(".check-in");
-      const co = roomCards[0].querySelector(".check-out");
-      if (!ci.value && sharedCheckIn.value) ci.value = sharedCheckIn.value;
-      if (!co.value && sharedCheckOut.value) co.value = sharedCheckOut.value;
+      carryDate(sharedCheckIn, roomCards[0].querySelector(".check-in"), CONFIG.DEFAULT_CHECK_IN);
+      carryDate(sharedCheckOut, roomCards[0].querySelector(".check-out"), CONFIG.DEFAULT_CHECK_OUT);
     }
     syncDatesMode();
     updatePricing();
@@ -398,7 +401,7 @@
       if (!result.ok) throw new Error(result.error || "Submission failed");
       showConfirmation(result.totalDue !== undefined ? result.totalDue : payload.totalDue);
     } catch (err) {
-      errorBox.innerHTML = "<div>Your reservation could not be submitted (a network or firewall issue may be blocking it). Nothing was saved. Please try again, ideally from a different network or browser, or contact us directly.</div>";
+      errorBox.innerHTML = "<div>Your reservation could not be submitted (a network or firewall issue may be blocking it). Please try again, ideally from a different network or browser. If it keeps failing, contact us directly and we'll confirm whether your request came through.</div>";
       errorBox.hidden = false;
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit reservation request";
@@ -431,16 +434,12 @@
       // Carry dates across the mode switch so nothing has to be retyped.
       if (form.elements.sameDates.value === "no") {
         roomCards.forEach((card) => {
-          const ci = card.querySelector(".check-in");
-          const co = card.querySelector(".check-out");
-          if (!ci.value && sharedCheckIn.value) ci.value = sharedCheckIn.value;
-          if (!co.value && sharedCheckOut.value) co.value = sharedCheckOut.value;
+          carryDate(sharedCheckIn, card.querySelector(".check-in"), CONFIG.DEFAULT_CHECK_IN);
+          carryDate(sharedCheckOut, card.querySelector(".check-out"), CONFIG.DEFAULT_CHECK_OUT);
         });
       } else if (roomCards.length) {
-        const ci = roomCards[0].querySelector(".check-in");
-        const co = roomCards[0].querySelector(".check-out");
-        if (!sharedCheckIn.value && ci.value) sharedCheckIn.value = ci.value;
-        if (!sharedCheckOut.value && co.value) sharedCheckOut.value = co.value;
+        carryDate(roomCards[0].querySelector(".check-in"), sharedCheckIn, CONFIG.DEFAULT_CHECK_IN);
+        carryDate(roomCards[0].querySelector(".check-out"), sharedCheckOut, CONFIG.DEFAULT_CHECK_OUT);
       }
       syncDatesMode();
       updatePricing();
