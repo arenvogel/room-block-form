@@ -337,6 +337,9 @@
     }
 
     const payload = {
+      // Idempotency key: the server dedupes on this, so the automatic retry
+      // below can never double-book a reservation.
+      clientRef: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10),
       submittedAt: new Date().toISOString(),
       primaryGuest: {
         firstName: form.elements.firstName.value.trim(),
@@ -356,18 +359,40 @@
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
+
+    const postOnce = async () => {
+      // 30s cap so a stalled network shows an error instead of hanging.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(CONFIG.ENDPOINT_URL, {
+          method: "POST",
+          // text/plain avoids a CORS preflight, which Apps Script can't answer.
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        return await response.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
     try {
-      const response = await fetch(CONFIG.ENDPOINT_URL, {
-        method: "POST",
-        // text/plain avoids a CORS preflight, which Apps Script can't answer.
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
+      let result;
+      try {
+        result = await postOnce();
+      } catch (netErr) {
+        // Network-level failure (timeout, proxy, dropped connection): the
+        // server may not have seen the request at all, so one retry is safe
+        // enough and rescues transient failures. Server rejections
+        // (result.ok === false) are never retried.
+        result = await postOnce();
+      }
       if (!result.ok) throw new Error(result.error || "Submission failed");
       showConfirmation(result.totalDue !== undefined ? result.totalDue : payload.totalDue);
     } catch (err) {
-      errorBox.innerHTML = "<div>Something went wrong submitting your reservation. Please try again, or contact us if it keeps happening.</div>";
+      errorBox.innerHTML = "<div>Your reservation could not be submitted (a network or firewall issue may be blocking it). Nothing was saved. Please try again, ideally from a different network or browser, or contact us directly.</div>";
       errorBox.hidden = false;
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit reservation request";

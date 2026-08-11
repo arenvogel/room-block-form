@@ -109,11 +109,27 @@ function doPost(e) {
         totalDue,
       ];
     });
+    // The client retries on network failure, so dedupe on its idempotency
+    // key: if this exact submission already landed, return the original
+    // result instead of appending duplicate rows. Cache check and append
+    // share the lock so a concurrent retry can't slip between them.
+    const clientRef = String(data.clientRef || "");
+    const cache = CacheService.getScriptCache();
+    const cacheKey = "res-" + clientRef;
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
+      if (clientRef) {
+        const previous = cache.get(cacheKey);
+        if (previous) return jsonResponse(JSON.parse(previous));
+      }
       const sheet = getSheet_();
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length).setValues(rows);
+      if (clientRef) {
+        cache.put(cacheKey, JSON.stringify({
+          ok: true, reservationId: reservationId, totalDue: totalDue, deduped: true,
+        }), 21600);
+      }
     } finally {
       lock.releaseLock();
     }
