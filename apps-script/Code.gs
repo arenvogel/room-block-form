@@ -16,11 +16,18 @@
 // Email address(es) to notify on each submission. Comma-separated. "" disables.
 const NOTIFY_EMAILS = "";
 
+// Square checkout. Paste the PRODUCTION access token and location ID here
+// (never into the public website repo). Leave both "" to disable — guests
+// then see the "we'll follow up with payment instructions" message.
+const SQUARE_ACCESS_TOKEN = "";
+const SQUARE_LOCATION_ID = "";
+const SQUARE_API_BASE = "https://connect.squareup.com"; // sandbox: https://connect.squareupsandbox.com
+
 const SHEET_NAME = "Reservations";
 
 // Must match calc.js on the site.
-const RATES_BY_ADULTS = { 1: 279, 2: 379, 3: 499, 4: 625 };
-const CHILD_RATE_PER_NIGHT = 88.5;
+const RATES_BY_ADULTS = { 1: 279, 2: 379, 3: 508, 4: 637 };
+const CHILD_RATE_PER_NIGHT = 105;
 const MAX_OCCUPANCY = 4;
 
 const HEADERS = [
@@ -125,26 +132,48 @@ function doPost(e) {
       }
       const sheet = getSheet_();
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length).setValues(rows);
+      // Provisional dedupe entry BEFORE releasing the lock, so a retry that
+      // lands while the Square call below is in flight can't re-append rows.
       if (clientRef) {
         cache.put(cacheKey, JSON.stringify({
-          ok: true, reservationId: reservationId, totalDue: totalDue, deduped: true,
+          ok: true, reservationId: reservationId, totalDue: totalDue, paymentUrl: "",
         }), 21600);
       }
     } finally {
       lock.releaseLock();
     }
 
+    // Square checkout link for the exact total. Square's own idempotency key
+    // (the reservation ID) means even a duplicate call yields the same link.
+    // A Square failure must not fail the persisted reservation: the guest
+    // then simply gets the follow-up-by-email message.
+    let paymentUrl = "";
+    if (SQUARE_ACCESS_TOKEN && SQUARE_LOCATION_ID) {
+      try {
+        paymentUrl = createSquarePaymentLink_(reservationId, guest, totalDue);
+      } catch (sqErr) {
+        console.error("Square payment link failed: " + sqErr.message);
+      }
+    }
+
+    const responseBody = {
+      ok: true, reservationId: reservationId, totalDue: totalDue, paymentUrl: paymentUrl,
+    };
+    if (clientRef) {
+      cache.put(cacheKey, JSON.stringify(responseBody), 21600);
+    }
+
     // The reservation is persisted; a notification failure must not fail the
     // request (a retry would append duplicate rows).
     if (NOTIFY_EMAILS) {
       try {
-        sendNotification_(reservationId, guest, computed, totalDue);
+        sendNotification_(reservationId, guest, computed, totalDue, paymentUrl);
       } catch (mailErr) {
         console.error("Notification email failed: " + mailErr.message);
       }
     }
 
-    return jsonResponse({ ok: true, reservationId: reservationId, totalDue: totalDue });
+    return jsonResponse(responseBody);
   } catch (err) {
     return jsonResponse({ ok: false, error: "Server error: " + err.message });
   }
@@ -162,6 +191,37 @@ function getSheet_() {
   return sheet;
 }
 
+// Creates a Square-hosted checkout page for the exact reservation total and
+// returns its URL. Card and Apple Pay/Google Pay are handled by Square.
+function createSquarePaymentLink_(reservationId, guest, totalDue) {
+  const response = UrlFetchApp.fetch(SQUARE_API_BASE + "/v2/online-checkout/payment-links", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + SQUARE_ACCESS_TOKEN },
+    payload: JSON.stringify({
+      idempotency_key: reservationId,
+      quick_pay: {
+        name: "Room Block Reservation " + reservationId + " - " +
+          guest.firstName + " " + guest.lastName,
+        price_money: { amount: Math.round(totalDue * 100), currency: "USD" },
+        location_id: SQUARE_LOCATION_ID,
+      },
+      checkout_options: {
+        allow_tipping: false,
+        ask_for_shipping_address: false,
+      },
+      pre_populated_data: { buyer_email: guest.email },
+    }),
+    muteHttpExceptions: true,
+  });
+  const body = JSON.parse(response.getContentText());
+  if (response.getResponseCode() >= 300 || !body.payment_link || !body.payment_link.url) {
+    throw new Error("Square API error (" + response.getResponseCode() + "): " +
+      response.getContentText().slice(0, 300));
+  }
+  return body.payment_link.url;
+}
+
 function money_(amount) {
   const decimals = Number.isInteger(amount) ? 0 : 2;
   return "$" + amount.toLocaleString("en-US", {
@@ -170,7 +230,7 @@ function money_(amount) {
   });
 }
 
-function sendNotification_(reservationId, guest, rooms, totalDue) {
+function sendNotification_(reservationId, guest, rooms, totalDue, paymentUrl) {
   const lines = [
     "New room block reservation: " + reservationId,
     "",
@@ -190,6 +250,9 @@ function sendNotification_(reservationId, guest, rooms, totalDue) {
   });
   lines.push("");
   lines.push("TOTAL DUE: " + money_(totalDue));
+  if (paymentUrl) {
+    lines.push("Square checkout link: " + paymentUrl);
+  }
   MailApp.sendEmail({
     to: NOTIFY_EMAILS,
     subject: "Room Block Reservation " + reservationId + " - " + guest.firstName + " " + guest.lastName + " (" + money_(totalDue) + ")",

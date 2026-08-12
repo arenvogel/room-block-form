@@ -40,7 +40,7 @@ body {
 
 .page-header { text-align: center; margin-bottom: 2rem; }
 .eyebrow {
-  margin: 0 0 .35rem;
+  margin: -.25rem 0 .75rem;
   font-size: .8rem;
   letter-spacing: .14em;
   text-transform: uppercase;

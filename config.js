@@ -3,8 +3,8 @@
 
 const CONFIG = {
   // Displayed at the top of the form.
-  EVENT_NAME: "Vogel Room Block",
-  HOTEL_NAME: "", // e.g. "The Grand Hotel" (optional, shown under the title)
+  EVENT_NAME: "Dani & Cam's Wedding Room Block",
+  HOTEL_NAME: "Lopesan Caoba Lagoon | Punta Cana",
 
   // Google Apps Script web app URL (ends in /exec). REQUIRED before go-live.
   ENDPOINT_URL: "https://script.google.com/macros/s/AKfycbzjYSbGjnLg90xIKZzwGQpGKWxIcGO3KWVIOYIxrdHkgi3PsM59ZCzzHy15em4koNtk/exec",
@@ -15,8 +15,8 @@ const CONFIG = {
   PAYMENT_URL: "",
 
   // Allowed stay window (the room block dates). "YYYY-MM-DD" or "" for no limit.
-  STAY_MIN_DATE: "",
-  STAY_MAX_DATE: "",
+  STAY_MIN_DATE: "2027-02-02",
+  STAY_MAX_DATE: "2027-02-11",
 
   // Dates prefilled in every date field (guests can change them). "" disables.
   DEFAULT_CHECK_IN: "2027-02-04",

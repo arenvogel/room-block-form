@@ -31,9 +31,21 @@
     roomCountSelect.appendChild(opt);
   }
 
-  function applyDateBounds(input) {
-    if (CONFIG.STAY_MIN_DATE) input.min = CONFIG.STAY_MIN_DATE;
-    if (CONFIG.STAY_MAX_DATE) input.max = CONFIG.STAY_MAX_DATE;
+  function addDaysIso(iso, days) {
+    return new Date(Date.parse(iso + "T00:00:00Z") + days * 86400000)
+      .toISOString().slice(0, 10);
+  }
+
+  // Constrain pickers to the room block window. A check-in on the window's
+  // last day (or a check-out on its first) can never form a valid stay, so
+  // each role gets a one-day-tighter bound.
+  function applyDateBounds(input, role) {
+    if (CONFIG.STAY_MIN_DATE) {
+      input.min = role === "out" ? addDaysIso(CONFIG.STAY_MIN_DATE, 1) : CONFIG.STAY_MIN_DATE;
+    }
+    if (CONFIG.STAY_MAX_DATE) {
+      input.max = role === "in" ? addDaysIso(CONFIG.STAY_MAX_DATE, -1) : CONFIG.STAY_MAX_DATE;
+    }
   }
   function applyDefaultDates(checkIn, checkOut) {
     if (CONFIG.DEFAULT_CHECK_IN) checkIn.value = CONFIG.DEFAULT_CHECK_IN;
@@ -46,8 +58,8 @@
     if (!srcEl.value) return;
     if (!destEl.value || destEl.value === defaultValue) destEl.value = srcEl.value;
   }
-  applyDateBounds(sharedCheckIn);
-  applyDateBounds(sharedCheckOut);
+  applyDateBounds(sharedCheckIn, "in");
+  applyDateBounds(sharedCheckOut, "out");
   applyDefaultDates(sharedCheckIn, sharedCheckOut);
 
   // ---- Room cards ----
@@ -127,8 +139,8 @@
 
     const checkIn = card.querySelector(".check-in");
     const checkOut = card.querySelector(".check-out");
-    applyDateBounds(checkIn);
-    applyDateBounds(checkOut);
+    applyDateBounds(checkIn, "in");
+    applyDateBounds(checkOut, "out");
     applyDefaultDates(checkIn, checkOut);
     [checkIn, checkOut].forEach((el) => el.addEventListener("change", updatePricing));
 
@@ -399,7 +411,10 @@
         result = await postOnce();
       }
       if (!result.ok) throw new Error(result.error || "Submission failed");
-      showConfirmation(result.totalDue !== undefined ? result.totalDue : payload.totalDue);
+      showConfirmation(
+        result.totalDue !== undefined ? result.totalDue : payload.totalDue,
+        result.paymentUrl || ""
+      );
     } catch (err) {
       errorBox.innerHTML = "<div>Your reservation could not be submitted (a network or firewall issue may be blocking it). Please try again, ideally from a different network or browser. If it keeps failing, contact us directly and we'll confirm whether your request came through.</div>";
       errorBox.hidden = false;
@@ -408,16 +423,24 @@
     }
   });
 
-  function showConfirmation(totalDue) {
+  function showConfirmation(totalDue, paymentUrl) {
     form.hidden = true;
     const confirmation = document.getElementById("confirmation");
     document.getElementById("confirm-total").textContent = formatMoney(totalDue);
     const payLink = document.getElementById("payment-link");
     const confirmText = document.getElementById("confirm-text");
     const footnote = document.getElementById("confirm-footnote");
-    if (CONFIG.PAYMENT_URL) {
+    if (paymentUrl) {
+      // Per-reservation Square checkout with the exact total prepopulated.
+      confirmText.textContent = "Thank you! Your reservation request has been recorded. Complete your payment below to finalize it.";
+      payLink.href = paymentUrl;
+      payLink.textContent = "Continue to Payment";
+      payLink.hidden = false;
+      footnote.textContent = "Your checkout total is prefilled to match the amount above. Card, Apple Pay, and Google Pay are accepted.";
+    } else if (CONFIG.PAYMENT_URL) {
       confirmText.textContent = "Thank you! Your reservation request has been recorded. Please complete payment for the exact amount below.";
       payLink.href = CONFIG.PAYMENT_URL;
+      payLink.textContent = "Continue to Payment";
       payLink.hidden = false;
       footnote.textContent = "Enter the exact Total Amount Due shown above when paying.";
     } else {

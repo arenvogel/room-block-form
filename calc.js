@@ -1,8 +1,8 @@
 // Pure pricing/date logic. No DOM access — also loaded by Node for tests
 // and mirrored in apps-script/Code.gs for server-side recalculation.
 
-const RATES_BY_ADULTS = { 1: 279, 2: 379, 3: 499, 4: 625 };
-const CHILD_RATE_PER_NIGHT = 88.5;
+const RATES_BY_ADULTS = { 1: 279, 2: 379, 3: 508, 4: 637 };
+const CHILD_RATE_PER_NIGHT = 105;
 const MAX_OCCUPANCY = 4;
 
 // Returns the nightly rate for a room, or null if the occupancy is invalid.

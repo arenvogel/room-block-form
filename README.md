@@ -6,12 +6,19 @@ Total Amount Due. Submissions land as rows in a Google Sheet you share with the
 booking agent, with optional email notifications.
 
 ## Rates (hardcoded in `calc.js` and `apps-script/Code.gs`)
-- 1 adult $279 / 2 adults $379 / 3 adults $499 / 4 adults $625 per night
-- Children (2-12): +$88.50 per child per night
+- 1 adult $279 / 2 adults $379 / 3 adults $508 / 4 adults $637 per night
+- Children (2-12): +$105 per child per night
 - Max 4 guests per room
 - King vs. Queens preference is captured but does not affect price
 
 The server recalculates all totals; client math is never trusted.
+
+## Square checkout
+Set `SQUARE_ACCESS_TOKEN` (production) and `SQUARE_LOCATION_ID` at the top of
+`apps-script/Code.gs` (never in this repo — the repo is public), then deploy a
+new version. The backend then creates a per-reservation Square Payment Link
+with the exact total and the confirmation screen shows "Continue to Payment".
+With the credentials unset, guests get the "we'll follow up" message instead.
 
 ## Setup
 

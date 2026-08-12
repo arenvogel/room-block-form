@@ -12,19 +12,19 @@ function eq(actual, expected, label) {
   }
 }
 
-// Adult-only rates (from Dani's spec)
+// Adult-only rates (updated block rates from Dani's 8/12 email)
 eq(nightlyRate(1, 0), 279, "1 adult = $279");
 eq(nightlyRate(2, 0), 379, "2 adults = $379");
-eq(nightlyRate(3, 0), 499, "3 adults = $499");
-eq(nightlyRate(4, 0), 625, "4 adults = $625");
+eq(nightlyRate(3, 0), 508, "3 adults = $508");
+eq(nightlyRate(4, 0), 637, "4 adults = $637");
 
-// Child combinations (exact table from the email)
-eq(nightlyRate(1, 1), 367.5, "1 adult + 1 child = $367.50");
-eq(nightlyRate(1, 2), 456.0, "1 adult + 2 children = $456.00");
-eq(nightlyRate(1, 3), 544.5, "1 adult + 3 children = $544.50");
-eq(nightlyRate(2, 1), 467.5, "2 adults + 1 child = $467.50");
-eq(nightlyRate(2, 2), 556.0, "2 adults + 2 children = $556.00");
-eq(nightlyRate(3, 1), 587.5, "3 adults + 1 child = $587.50");
+// Child combinations (adult rate + $105 per child)
+eq(nightlyRate(1, 1), 384, "1 adult + 1 child = $384");
+eq(nightlyRate(1, 2), 489, "1 adult + 2 children = $489");
+eq(nightlyRate(1, 3), 594, "1 adult + 3 children = $594");
+eq(nightlyRate(2, 1), 484, "2 adults + 1 child = $484");
+eq(nightlyRate(2, 2), 589, "2 adults + 2 children = $589");
+eq(nightlyRate(3, 1), 613, "3 adults + 1 child = $613");
 
 // Occupancy limits
 eq(nightlyRate(4, 1), null, "4 adults + 1 child exceeds max occupancy");
@@ -51,8 +51,8 @@ eq(nightsBetween("2027-03-13", "2027-03-15"), 2, "DST spring-forward boundary");
 
 // Room totals (example from the email: 3 nights x $379 = $1,137)
 eq(roomTotal(2, 0, "2027-02-04", "2027-02-07"), 1137, "email example: $1,137");
-eq(roomTotal(2, 2, "2027-02-04", "2027-02-06"), 1112, "2A+2C, 2 nights = $1,112");
-eq(roomTotal(1, 1, "2027-02-04", "2027-02-07"), 1102.5, "1A+1C, 3 nights = $1,102.50");
+eq(roomTotal(2, 2, "2027-02-04", "2027-02-06"), 1178, "2A+2C, 2 nights = $1,178");
+eq(roomTotal(1, 1, "2027-02-04", "2027-02-07"), 1152, "1A+1C, 3 nights = $1,152");
 eq(roomTotal(4, 1, "2027-02-04", "2027-02-07"), null, "invalid occupancy yields null total");
 eq(roomTotal(2, 0, "2027-02-07", "2027-02-04"), null, "invalid dates yield null total");
 
