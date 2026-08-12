@@ -194,32 +194,42 @@ function getSheet_() {
 // Creates a Square-hosted checkout page for the exact reservation total and
 // returns its URL. Card and Apple Pay/Google Pay are handled by Square.
 function createSquarePaymentLink_(reservationId, guest, totalDue) {
+  const request = {
+    idempotency_key: reservationId,
+    quick_pay: {
+      name: "Room Block Reservation " + reservationId + " - " +
+        guest.firstName + " " + guest.lastName,
+      price_money: { amount: Math.round(totalDue * 100), currency: "USD" },
+      location_id: SQUARE_LOCATION_ID,
+    },
+    checkout_options: {
+      allow_tipping: false,
+      ask_for_shipping_address: false,
+    },
+    pre_populated_data: { buyer_email: guest.email },
+  };
+  let body = postToSquare_(request);
+  // The email prefill is a nicety; Square rejects addresses it considers
+  // invalid, and that must not cost the guest their checkout link.
+  if (body.errors && JSON.stringify(body.errors).indexOf("buyer_email") !== -1) {
+    delete request.pre_populated_data;
+    body = postToSquare_(request);
+  }
+  if (!body.payment_link || !body.payment_link.url) {
+    throw new Error("Square API error: " + JSON.stringify(body).slice(0, 300));
+  }
+  return body.payment_link.url;
+}
+
+function postToSquare_(request) {
   const response = UrlFetchApp.fetch(SQUARE_API_BASE + "/v2/online-checkout/payment-links", {
     method: "post",
     contentType: "application/json",
     headers: { Authorization: "Bearer " + SQUARE_ACCESS_TOKEN },
-    payload: JSON.stringify({
-      idempotency_key: reservationId,
-      quick_pay: {
-        name: "Room Block Reservation " + reservationId + " - " +
-          guest.firstName + " " + guest.lastName,
-        price_money: { amount: Math.round(totalDue * 100), currency: "USD" },
-        location_id: SQUARE_LOCATION_ID,
-      },
-      checkout_options: {
-        allow_tipping: false,
-        ask_for_shipping_address: false,
-      },
-      pre_populated_data: { buyer_email: guest.email },
-    }),
+    payload: JSON.stringify(request),
     muteHttpExceptions: true,
   });
-  const body = JSON.parse(response.getContentText());
-  if (response.getResponseCode() >= 300 || !body.payment_link || !body.payment_link.url) {
-    throw new Error("Square API error (" + response.getResponseCode() + "): " +
-      response.getContentText().slice(0, 300));
-  }
-  return body.payment_link.url;
+  return JSON.parse(response.getContentText());
 }
 
 function money_(amount) {
