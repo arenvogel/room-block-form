@@ -7,7 +7,7 @@ const CONFIG = {
   HOTEL_NAME: "Lopesan Caoba Lagoon | Punta Cana",
 
   // Google Apps Script web app URL (ends in /exec). REQUIRED before go-live.
-  ENDPOINT_URL: "https://script.google.com/macros/s/AKfycbzjYSbGjnLg90xIKZzwGQpGKWxIcGO3KWVIOYIxrdHkgi3PsM59ZCzzHy15em4koNtk/exec",
+  ENDPOINT_URL: "https://script.google.com/macros/s/AKfycbya-LX1QxBh6a3VlhBAXPYTBKtl1Sb2EDf2dLfZSty1_ztlGh6LXC0rHns2ro2KSTbz/exec",
 
   // Payment link (Option A). If set, it is shown on the confirmation screen
   // with the calculated total. If empty, guests see the Option B message
