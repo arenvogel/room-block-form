@@ -240,21 +240,19 @@ input:focus-visible, select:focus-visible {
 .submit-btn:disabled { opacity: .6; cursor: default; }
 
 .confirmation { text-align: center; padding: 2.5rem 1.5rem; }
-.confirm-icon {
-  width: 3rem;
-  height: 3rem;
-  margin: 0 auto 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #e7f3ea;
-  color: #1e7c37;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-.confirmation h2 { justify-content: center; }
+.confirmation h2 { justify-content: center; font-size: 1.35rem; flex-wrap: wrap; }
+/* Focused programmatically for screen readers; no visible ring needed. */
+.confirmation h2:focus { outline: none; }
 .confirmation p { color: var(--ink-soft); }
+/* Payment-still-required notice: amber so it can't read as "done". */
+.confirmation .confirm-warning {
+  padding: .75rem 1rem;
+  background: #fdf6e8;
+  border: 1px solid #e4c680;
+  border-radius: 8px;
+  color: #7a5a12;
+  font-weight: 600;
+}
 .confirm-total {
   text-align: left;
   background: var(--accent-soft);

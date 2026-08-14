@@ -15,8 +15,10 @@ const CONFIG = {
   PAYMENT_URL: "",
 
   // Allowed stay window (the room block dates). "YYYY-MM-DD" or "" for no limit.
+  // STAY_MAX_DATE is the last allowed CHECK-OUT day; the last bookable night
+  // is the day before it (Feb 11 per Dani's 8/12 email).
   STAY_MIN_DATE: "2027-02-02",
-  STAY_MAX_DATE: "2027-02-11",
+  STAY_MAX_DATE: "2027-02-12",
 
   // Dates prefilled in every date field (guests can change them). "" disables.
   DEFAULT_CHECK_IN: "2027-02-04",

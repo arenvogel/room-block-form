@@ -428,26 +428,32 @@
     const confirmation = document.getElementById("confirmation");
     document.getElementById("confirm-total").textContent = formatMoney(totalDue);
     const payLink = document.getElementById("payment-link");
+    const heading = document.getElementById("confirm-heading");
     const confirmText = document.getElementById("confirm-text");
     const footnote = document.getElementById("confirm-footnote");
     if (paymentUrl) {
       // Per-reservation Square checkout with the exact total prepopulated.
-      confirmText.textContent = "Thank you! Your reservation request has been recorded. Complete your payment below to finalize it.";
+      confirmText.textContent = "Your reservation is not confirmed yet. Complete your payment below to finalize your room reservation.";
       payLink.href = paymentUrl;
       payLink.textContent = "Continue to Payment";
       payLink.hidden = false;
-      footnote.textContent = "Your checkout total is prefilled to match the amount above. Card, Apple Pay, and Google Pay are accepted.";
+      footnote.textContent = "Your room will not be reserved until payment is completed. Card, Apple Pay, and Google Pay are accepted.";
     } else if (CONFIG.PAYMENT_URL) {
-      confirmText.textContent = "Thank you! Your reservation request has been recorded. Please complete payment for the exact amount below.";
+      confirmText.textContent = "Your reservation is not confirmed yet. Complete your payment below to finalize your room reservation.";
       payLink.href = CONFIG.PAYMENT_URL;
       payLink.textContent = "Continue to Payment";
       payLink.hidden = false;
-      footnote.textContent = "Enter the exact Total Amount Due shown above when paying.";
+      footnote.textContent = "Enter the exact Total Amount Due shown above when paying. Your room will not be reserved until payment is completed. Card, Apple Pay, and Google Pay are accepted.";
     } else {
-      confirmText.textContent = "Thank you! Your reservation request has been recorded. We'll follow up by email with your total and payment instructions.";
+      // No payment link available: same "not done yet" framing, but payment
+      // happens over email instead of a button.
+      heading.textContent = "Almost there! Your reservation is not complete yet.";
+      confirmText.textContent = "Your reservation is not confirmed yet. We'll follow up by email with your total and payment instructions — your room will not be reserved until payment is completed.";
     }
     confirmation.hidden = false;
     window.scrollTo({ top: 0, behavior: "smooth" });
+    // Announce the "payment still required" state to screen readers.
+    heading.focus({ preventScroll: true });
   }
 
   // ---- Wire up top-level controls ----
